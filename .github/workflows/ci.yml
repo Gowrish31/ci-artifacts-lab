@@ -6,12 +6,11 @@ on:
   pull_request:
     branches: [ main ]
 
-# A three-job pipeline that builds, tests, and packages the application.
-# It intentionally contains subtle artifact lifecycle issues for the lab.
 jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -19,7 +18,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: Install dependencies
         run: npm ci
@@ -27,18 +26,18 @@ jobs:
       - name: Build application
         run: npm run build
 
-      # Intentional: upload points at ./dist/ but build writes to ./build/
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: build-output
-          path: ./dist/
+          path: ./build/
+          if-no-files-found: error
 
   test:
     name: Test
     runs-on: ubuntu-latest
-    # NOTE: This job intentionally does not declare 'needs: [build]'
-    # so it may run in parallel with the build job and race on artifact download.
+    needs: [build]
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -46,7 +45,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: Install dependencies
         run: npm ci
@@ -60,17 +59,19 @@ jobs:
       - name: Run tests
         run: npm test
 
-      # Intentional: missing "if: always()" — report upload will be skipped on failing runs
       - name: Upload test report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results
           path: ./test-results/
+          if-no-files-found: error
 
   package:
     name: Package
     runs-on: ubuntu-latest
     needs: [build, test]
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -78,7 +79,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: Install dependencies
         run: npm ci
@@ -97,3 +98,4 @@ jobs:
         with:
           name: release-package
           path: ./release-package.zip
+          if-no-files-found: error
